@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .toggle-form {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+        .toggle-form a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .users-list {
+            margin-top: 30px;
+            display: none;
+        }
+        .user-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-info {
+            flex: 1;
+        }
+        .user-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .user-email {
+            color: #666;
+            font-size: 14px;
+        }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .delete-btn:hover {
+            background: #c82333;
+        }
+        .logout-btn {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+        #loginForm, #registerForm {
+            display: none;
+        }
+        #loginForm.active, #registerForm.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>User Management System</h2>
+        <div id="message" class="message"></div>
+
+        <!-- Login Form -->
+        <form id="loginForm" class="active">
+            <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" required>
+            </div>
+            <button type="submit">Login</button>
+            <div class="toggle-form">
+                Don't have an account? <a href="#" onclick="toggleForms(); return false;">Register</a>
+            </div>
+        </form>
+
+        <!-- Register Form -->
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="registerName">Full Name</label>
+                <input type="text" id="registerName" required>
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password</label>
+                <input type="password" id="registerPassword" required minlength="6">
+            </div>
+            <button type="submit">Register</button>
+            <div class="toggle-form">
+                Already have an account? <a href="#" onclick="toggleForms(); return false;">Login</a>
+            </div>
+        </form>
+
+        <!-- Users Dashboard -->
+        <div id="usersDashboard" class="users-list">
+            <h3>All Users</h3>
+            <div id="usersContainer"></div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://10.106.141.172:5000/api';
+        let token = localStorage.getItem('token');
+
+        // Check if user is already logged in
+        if (token) {
+            showDashboard();
+        }
+
+        // Toggle between login and register forms
+        function toggleForms() {
+            document.getElementById('loginForm').classList.toggle('active');
+            document.getElementById('registerForm').classList.toggle('active');
+            clearMessage();
+        }
+
+        // Show message
+        function showMessage(message, type) {
+            const msgDiv = document.getElementById('message');
+            msgDiv.textContent = message;
+            msgDiv.className = `message ${type}`;
+            msgDiv.style.display = 'block';
+            setTimeout(() => {
+                msgDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function clearMessage() {
+            document.getElementById('message').style.display = 'none';
+        }
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    token = data.token;
+                    localStorage.setItem('token', token);
+                    showMessage('Login successful!', 'success');
+                    setTimeout(() => showDashboard(), 1000);
+                } else {
+                    showMessage(data.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Error connecting to server', 'error');
+            }
+        });
+
+        // Register
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('Registration successful! Please login.', 'success');
+                    setTimeout(() => {
+                        toggleForms();
+                        document.getElementById('registerForm').reset();
+                    }, 1500);
+                } else {
+                    showMessage(data.message || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Error connecting to server', 'error');
+            }
+        });
+
+        // Show Dashboard
+        async function showDashboard() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('usersDashboard').style.display = 'block';
+            await loadUsers();
+        }
+
+        // Load Users
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_URL}/users`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayUsers(data.users);
+                } else {
+                    showMessage('Failed to load users', 'error');
+                }
+            } catch (error) {
+                showMessage('Error loading users', 'error');
+            }
+        }
+
+        // Display Users
+        function displayUsers(users) {
+            const container = document.getElementById('usersContainer');
+            container.innerHTML = '';
+
+            users.forEach(user => {
+                const userCard = document.createElement('div');
+                userCard.className = 'user-card';
+                userCard.innerHTML = `
+                    <div class="user-info">
+                        <div class="user-name">${user.name}</div>
+                        <div class="user-email">${user.email}</div>
+                    </div>
+                    <button class="delete-btn" onclick="deleteUser('${user._id}')">Delete</button>
+                `;
+                container.appendChild(userCard);
+            });
+        }
+
+        // Delete User
+        async function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    showMessage('User deleted successfully', 'success');
+                    loadUsers();
+                } else {
+                    showMessage('Failed to delete user', 'error');
+                }
+            } catch (error) {
+                showMessage('Error deleting user', 'error');
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('token');
+            token = null;
+            document.getElementById('usersDashboard').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('loginForm').classList.add('active');
+            document.getElementById('loginForm').reset();
+            showMessage('Logged out successfully', 'success');
+        }
+    </script>
+</body>
+</html>
