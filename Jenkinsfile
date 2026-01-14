@@ -78,10 +78,10 @@ pipeline {
                         sed -i 's|image:.*backend.*|image: ${BACKEND_IMAGE}|g' k8s-manifests/backend-deployment.yaml
                         sed -i 's|image:.*frontend.*|image: ${FRONTEND_IMAGE}|g' k8s-manifests/frontend-deployment.yaml
                         """
-                        // Use full path to microk8s kubectl
-                        sh '/snap/bin/microk8s.kubectl apply -f k8s-manifests/'
-                        sh '/snap/bin/microk8s.kubectl rollout status deployment/backend'
-                        sh '/snap/bin/microk8s.kubectl rollout status deployment/frontend'
+                        // Use the actual kubectl binary from MicroK8s snap (current symlink to latest version)
+                        sh '/snap/microk8s/current/kubectl apply -f k8s-manifests/'
+                        sh '/snap/microk8s/current/kubectl rollout status deployment/backend'
+                        sh '/snap/microk8s/current/kubectl rollout status deployment/frontend'
                     }
                 }
             }
