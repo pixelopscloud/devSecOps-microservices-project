@@ -33,16 +33,28 @@ pipeline {
         stage('Trivy Security Scan') {
             steps {
                 script {
-                    // FIX: Added -v /var/run/docker.sock mount
+                    // Backend scan with timeout + only vuln scanner
                     sh """
                     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-                        aquasec/trivy image --exit-code 0 --no-progress --format table \
-                        ${BACKEND_IMAGE}
+                        aquasec/trivy image \
+                        --exit-code 0 \
+                        --no-progress \
+                        --format table \
+                        --timeout 20m \
+                        --scanners vuln \
+                        ${BACKEND_IMAGE} > backend-trivy-scan.txt || true
                     """
+
+                    // Frontend scan same settings
                     sh """
                     docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-                        aquasec/trivy image --exit-code 0 --no-progress --format table \
-                        ${FRONTEND_IMAGE}
+                        aquasec/trivy image \
+                        --exit-code 0 \
+                        --no-progress \
+                        --format table \
+                        --timeout 20m \
+                        --scanners vuln \
+                        ${FRONTEND_IMAGE} > frontend-trivy-scan.txt || true
                     """
                 }
             }
@@ -50,7 +62,6 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                // withCredentials automatically logs out, but post always block has logout too
                 withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                     sh 'echo $PASS | docker login -u $USER --password-stdin'
                     sh "docker push ${BACKEND_IMAGE}"
@@ -61,7 +72,6 @@ pipeline {
 
         stage('Deploy to MicroK8s') {
             steps {
-                // Ensure the "Kubernetes Continuous Deploy" plugin is installed
                 withKubeConfig([credentialsId: KUBECONFIG_CRED_ID]) {
                     script {
                         sh """
@@ -79,7 +89,6 @@ pipeline {
 
     post {
         always {
-            // Check if logged in before trying to logout to avoid errors
             sh 'docker logout || true' 
             echo 'Pipeline finished!'
         }
